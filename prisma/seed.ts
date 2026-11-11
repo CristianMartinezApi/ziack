@@ -22,26 +22,28 @@ async function main() {
     create: { name: "Equipe Ziack", email: adminEmail, password: await hash(adminPassword, 12), role: "ADMIN" },
   });
 
-  for (const item of catalog) {
-    const category = await prisma.category.upsert({
-      where: { slug: item.category.toLowerCase().replaceAll(" ", "-") },
-      update: {},
-      create: { name: item.category, slug: item.category.toLowerCase().replaceAll(" ", "-") },
-    });
-    await prisma.product.upsert({
-      where: { slug: item.slug },
-      update: { categoryId: category.id, price: item.price },
-      create: {
-        name: item.name,
-        slug: item.slug,
-        description: item.description,
-        price: item.price,
-        sku: item.sku,
-        categoryId: category.id,
-        stock: 12,
-        active: true,
-      },
-    });
+  if (process.env.SEED_DEMO_CATALOG !== "false") {
+    for (const item of catalog) {
+      const category = await prisma.category.upsert({
+        where: { slug: item.category.toLowerCase().replaceAll(" ", "-") },
+        update: {},
+        create: { name: item.category, slug: item.category.toLowerCase().replaceAll(" ", "-") },
+      });
+      await prisma.product.upsert({
+        where: { slug: item.slug },
+        update: { categoryId: category.id, price: item.price },
+        create: {
+          name: item.name,
+          slug: item.slug,
+          description: item.description,
+          price: item.price,
+          sku: item.sku,
+          categoryId: category.id,
+          stock: 12,
+          active: true,
+        },
+      });
+    }
   }
   await prisma.storeSettings.upsert({
     where: { id: "store" },

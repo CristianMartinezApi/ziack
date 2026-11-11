@@ -22,7 +22,7 @@ A vitrine fica em `/`, os detalhes em `/produto/[slug]`, o checkout em `/checkou
 
 ## Docker
 
-Para produção, configure `.env` no servidor com senhas/segredos fortes e `APP_URL` apontando para o domínio HTTPS. O container aplica migrações versionadas (`prisma migrate deploy`) antes de iniciar. Na primeira implantação, crie o administrador e o catálogo inicial explicitamente com `docker compose run --rm app npx prisma db seed`; não execute o seed a cada reinício, pois ele redefine a senha do administrador para o valor em `ADMIN_PASSWORD`.
+Para produção, configure `.env` no servidor com senhas/segredos fortes, `APP_URL` apontando para o domínio HTTPS e `SEED_DEMO_CATALOG=false` se não quiser os produtos de exemplo. O container aplica migrações versionadas (`prisma migrate deploy`) antes de iniciar. Na primeira implantação, crie o administrador e, opcionalmente, o catálogo demonstrativo com `docker compose run --rm app npx prisma db seed`; não execute o seed a cada reinício, pois ele redefine a senha do administrador para o valor em `ADMIN_PASSWORD`. Para desenvolvimento, `SEED_DEMO_CATALOG=true` mantém o catálogo demonstrativo habilitado.
 
 O PostgreSQL fica apenas na rede interna do Docker, sem porta publicada no host. O Next.js é publicado somente em `127.0.0.1:3000` e deve ficar atrás de um proxy reverso HTTPS, como Nginx. Os volumes `ziack_postgres_data` e `ziack_product_uploads` preservam banco e imagens, mas não substituem backups externos. Use `sudo docker compose up -d --build` para iniciar e `sudo docker compose logs -f app` para acompanhar os logs.
 

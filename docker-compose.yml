@@ -13,6 +13,7 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:?Configure ADMIN_EMAIL no .env}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Configure ADMIN_PASSWORD no .env}
       AUTH_SECRET: ${AUTH_SECRET:?Configure AUTH_SECRET no .env}
+      SEED_DEMO_CATALOG: ${SEED_DEMO_CATALOG:-false}
       APP_URL: ${APP_URL:-http://localhost:3000}
       MERCADOPAGO_MODE: ${MERCADOPAGO_MODE:-sandbox}
       MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
