@@ -21,6 +21,11 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum CouponDiscountType {
+  PERCENTAGE
+  FIXED
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
@@ -36,54 +41,118 @@ model Category {
   id        String    @id @default(cuid())
   name      String    @unique
   slug      String    @unique
+  active    Boolean   @default(true)
   products  Product[]
   createdAt DateTime  @default(now())
 }
 
 model Product {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
-  slug        String   @unique
-  description String   @db.Text
-  price       Decimal  @db.Decimal(10, 2)
-  compareAt   Decimal? @db.Decimal(10, 2)
-  sku         String   @unique
-  stock       Int      @default(0)
-  active      Boolean  @default(true)
+  slug        String      @unique
+  description String      @db.Text
+  price       Decimal     @db.Decimal(10, 2)
+  compareAt   Decimal?    @db.Decimal(10, 2)
+  sku         String      @unique
+  stock       Int         @default(0)
+  weight      Decimal?    @db.Decimal(8, 3)
+  width       Int?
+  height      Int?
+  length      Int?
+  active      Boolean     @default(true)
   imageUrl    String?
   categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id])
+  category    Category    @relation(fields: [categoryId], references: [id])
   orderItems  OrderItem[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   @@index([categoryId, active])
 }
 
 model Order {
-  id            String      @id @default(cuid())
-  number        String      @unique
-  status        OrderStatus @default(PENDING)
-  subtotal      Decimal     @db.Decimal(10, 2)
-  shipping      Decimal     @default(0) @db.Decimal(10, 2)
-  total         Decimal     @db.Decimal(10, 2)
-  customerId    String
-  customer      User        @relation(fields: [customerId], references: [id])
-  items         OrderItem[]
-  shippingData  Json?
-  paymentMethod String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id                  String         @id @default(cuid())
+  number              String         @unique
+  status              OrderStatus    @default(PENDING)
+  subtotal            Decimal        @db.Decimal(10, 2)
+  discount            Decimal        @default(0) @db.Decimal(10, 2)
+  shipping            Decimal?       @db.Decimal(10, 2)
+  total               Decimal?       @db.Decimal(10, 2)
+  customerId          String?
+  customer            User?          @relation(fields: [customerId], references: [id])
+  customerName        String?
+  customerEmail       String?
+  customerPhone       String?
+  items               OrderItem[]
+  couponId            String?
+  coupon              PartnerCoupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  couponCode          String?
+  shippingData        Json?
+  paymentMethod       String?
+  paymentProvider     String?
+  paymentPreferenceId String?        @unique
+  paymentId           String?        @unique
+  paymentStatus       String?
+  paymentStatusDetail String?
+  paymentExpiresAt    DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
 
   @@index([status, createdAt])
+  @@index([customerEmail])
 }
 
 model OrderItem {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   quantity  Int
-  unitPrice Decimal  @db.Decimal(10, 2)
+  unitPrice Decimal @db.Decimal(10, 2)
   orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId String
-  product   Product  @relation(fields: [productId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model StoreSettings {
+  id                       String   @id @default("store")
+  storeName                String   @default("Ziack")
+  contactEmail             String?
+  contactPhone             String?
+  shippingFee              Decimal? @db.Decimal(10, 2)
+  freeShippingThreshold    Decimal? @db.Decimal(10, 2)
+  shippingOriginPostalCode String?
+  shippingDeadlineDays     Int?
+  checkoutNotice           String   @default("Este é um checkout demonstrativo. Nenhum pagamento será cobrado.") @db.Text
+  orderPolicy              String   @default("O frete e o valor final serão confirmados antes de qualquer pagamento.") @db.Text
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+model ShippingIntegration {
+  id                    String   @id @default("store")
+  mode                  String
+  accessTokenEncrypted  String   @db.Text
+  refreshTokenEncrypted String   @db.Text
+  accessTokenExpiresAt  DateTime
+  connectedAt           DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model PartnerCoupon {
+  id              String             @id @default(cuid())
+  code            String             @unique
+  partnerName     String
+  partnerEmail    String?
+  discountType    CouponDiscountType
+  discountValue   Decimal            @db.Decimal(10, 2)
+  minimumSubtotal Decimal?           @db.Decimal(10, 2)
+  startsAt        DateTime?
+  expiresAt       DateTime?
+  maxUses         Int?
+  usageCount      Int                @default(0)
+  active          Boolean            @default(true)
+  orders          Order[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([active, startsAt, expiresAt])
 }

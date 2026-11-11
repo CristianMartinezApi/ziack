@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { hash } from "bcryptjs";
+import { DEFAULT_CHECKOUT_NOTICE, DEFAULT_ORDER_POLICY } from "../src/lib/store-settings-defaults";
 
 const prisma = new PrismaClient();
 const catalog = [
@@ -42,6 +43,16 @@ async function main() {
       },
     });
   }
+  await prisma.storeSettings.upsert({
+    where: { id: "store" },
+    update: {},
+    create: {
+      id: "store",
+      storeName: "Ziack",
+      checkoutNotice: DEFAULT_CHECKOUT_NOTICE,
+      orderPolicy: DEFAULT_ORDER_POLICY,
+    },
+  });
   console.info("Catálogo Ziack de demonstração criado.");
 }
 

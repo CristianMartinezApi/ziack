@@ -1,31 +1,40 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowRight, ArrowUpRight, Check, ChevronDown, Heart, Menu, Search, ShoppingBag, Sparkles, X } from "lucide-react";
+import Image from "next/image";
+import { ArrowDown, ArrowRight, ArrowUpRight, Check, ChevronDown, Heart, Menu, Minus, Plus, Search, ShoppingBag, Sparkles, Trash2, X } from "lucide-react";
 import { categories, formatPrice, products as demoProducts, type Product } from "@/lib/products";
+import { useCart } from "@/components/cart-provider";
 
-export function Storefront({ initialProducts = demoProducts }: { initialProducts?: Product[] }) {
+export function Storefront({ initialProducts = demoProducts, categoryOptions = categories.slice(1) }: { initialProducts?: Product[]; categoryOptions?: string[] }) {
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [query, setQuery] = useState("");
-  const [cartCount, setCartCount] = useState(0);
   const [cartOpen, setCartOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [notice, setNotice] = useState("");
+  const { items, itemCount, storageError, addItem, setQuantity, syncInventory, removeItem, clearCart } = useCart();
+  useEffect(() => {
+    syncInventory(initialProducts);
+  }, [initialProducts, syncInventory]);
   const filteredProducts = useMemo(() => initialProducts.filter((product) => {
     const matchesCategory = activeCategory === "Todos" || product.category === activeCategory;
     return matchesCategory && product.name.toLowerCase().includes(query.toLowerCase());
   }), [activeCategory, initialProducts, query]);
 
-  function addToCart(name: string) {
-    setCartCount((count) => count + 1);
-    setNotice(`${name} foi adicionada à sua sacola`);
+  function addToCart(product: Product) {
+    if (!addItem(product)) {
+      setNotice(product.stock === 0 ? `${product.name} está sem estoque no momento` : "Limite de estoque disponível atingido");
+      window.setTimeout(() => setNotice(""), 2400);
+      return;
+    }
+    setNotice(`${product.name} foi adicionada à sua sacola`);
     window.setTimeout(() => setNotice(""), 2400);
   }
 
   return (
     <main>
-      <div className="announcement"><Sparkles size={13} /> Frete grátis na primeira compra acima de R$ 350 <span>·</span> Use <strong>ZIACK10</strong></div>
+      <div className="announcement"><Sparkles size={13} /> Joias para celebrar cada capítulo da sua história <span>·</span> <strong>ZIACK</strong></div>
       <header className="site-header">
         <button className="icon-button mobile-menu" aria-label={menuOpen ? "Fechar menu" : "Abrir menu"} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
         <nav className={menuOpen ? "main-nav mobile-nav-open" : "main-nav"}><a href="#colecao" onClick={() => setMenuOpen(false)}>Coleção</a><a href="#sobre" onClick={() => setMenuOpen(false)}>Nossa essência</a><a href="#favoritos" onClick={() => setMenuOpen(false)}>Mais amados</a></nav>
@@ -33,7 +42,7 @@ export function Storefront({ initialProducts = demoProducts }: { initialProducts
         <div className="header-actions">
           <button className="icon-button search-trigger" aria-label="Buscar" onClick={() => document.getElementById("product-search")?.focus()}><Search size={20} /></button>
           <Link className="admin-link" href="/admin">Área da loja</Link>
-          <button className="icon-button bag-button" aria-label="Abrir sacola" onClick={() => setCartOpen(true)}><ShoppingBag size={20} /><span className="bag-count">{cartCount}</span></button>
+          <button className="icon-button bag-button" aria-label={`Abrir sacola com ${itemCount} ${itemCount === 1 ? "item" : "itens"}`} onClick={() => setCartOpen(true)}><ShoppingBag size={20} /><span className="bag-count">{itemCount}</span></button>
         </div>
       </header>
 
@@ -59,18 +68,19 @@ export function Storefront({ initialProducts = demoProducts }: { initialProducts
       <section className="collection section-wrap" id="colecao">
         <div className="section-heading"><div><p className="eyebrow">A curadoria Ziack</p><h2>Peças para <em>sentir.</em></h2></div><p>Pequenos detalhes. Grandes significados.<br />Encontre a sua próxima peça favorita.</p></div>
         <div className="collection-toolbar">
-          <div className="category-tabs">{categories.map((category) => <button key={category} className={activeCategory === category ? "category-tab active" : "category-tab"} onClick={() => setActiveCategory(category)}>{category}</button>)}</div>
+          <div className="category-tabs">{["Todos", ...categoryOptions].map((category) => <button key={category} className={activeCategory === category ? "category-tab active" : "category-tab"} onClick={() => setActiveCategory(category)}>{category}</button>)}</div>
           <label className="search-box"><Search size={15} /><input id="product-search" placeholder="Buscar joias" value={query} onChange={(event) => setQuery(event.target.value)} /><ChevronDown size={14} /></label>
         </div>
         <div className="product-grid" id="favoritos">
-          {filteredProducts.map((product) => <article className="product-card" key={product.id}>
+          {filteredProducts.map((product) => <article className={product.stock === 0 ? "product-card product-card-unavailable" : "product-card"} key={product.id}>
             <Link href={`/produto/${product.slug}`} className={`product-art product-${product.tone}`} aria-label={`Ver ${product.name}`}>
               <span className="product-tag">{product.tag ?? "Ziack essencial"}</span><button className="favorite-button" aria-label="Adicionar aos favoritos" onClick={(event) => { event.preventDefault(); setNotice("Peça salva nos seus favoritos"); window.setTimeout(() => setNotice(""), 2000); }}><Heart size={17} /></button>
-              <span className="jewel-shape" /><span className="product-quick">Ver peça <ArrowUpRight size={14} /></span>
+              {product.stock === 0 && <span className="stock-badge stock-badge-unavailable">Estoque indisponível</span>}
+              {product.imageUrl ? <Image className="catalog-product-image" src={product.imageUrl} alt={product.name} fill sizes="(max-width: 700px) 90vw, (max-width: 1100px) 45vw, 25vw" /> : <span className="jewel-shape" />}<span className="product-quick">Ver peça <ArrowUpRight size={14} /></span>
             </Link>
-            <div className="product-info"><div><Link href={`/produto/${product.slug}`} className="product-name">{product.name}</Link><p>{product.category} · Banhado a ouro</p></div><span className="product-price">{formatPrice(product.price)}</span></div>
+            <div className="product-info"><div><Link href={`/produto/${product.slug}`} className="product-name">{product.name}</Link><p>{product.category} · Banhado a ouro</p><p className={product.stock > 0 ? "product-stock-available" : "product-stock-unavailable"}>{product.stock > 0 ? "Disponível" : "Estoque indisponível"}</p></div><span className="product-price">{formatPrice(product.price)}</span></div>
             {product.compareAt && <p className="compare-price">De {formatPrice(product.compareAt)} <span>· em até 3x de {formatPrice(product.price / 3)}</span></p>}
-            <button className="add-button" onClick={() => addToCart(product.name)}>Adicionar à sacola <ArrowRight size={15} /></button>
+            <button className="add-button" onClick={() => addToCart(product)} disabled={product.stock === 0 || items.some((item) => item.id === product.id && item.quantity >= Math.min(10, product.stock))}>{product.stock === 0 ? "Indisponível para compra" : items.some((item) => item.id === product.id && item.quantity >= Math.min(10, product.stock)) ? "Limite de estoque atingido" : <>Adicionar à sacola <ArrowRight size={15} /></>}</button>
           </article>)}
           {filteredProducts.length === 0 && <p className="empty-results">Nenhuma joia encontrada. Tente outra busca.</p>}
         </div>
@@ -84,7 +94,7 @@ export function Storefront({ initialProducts = demoProducts }: { initialProducts
       <footer className="site-footer"><Link className="wordmark" href="/">ziack<span>.</span></Link><p>Joias para ser. Desde sempre.</p><div><a href="#colecao">Coleção</a><a href="#sobre">Nossa essência</a><Link href="/admin">Área da loja</Link></div><span className="copyright">© 2026 Ziack. Feito com intenção.</span></footer>
 
       {notice && <div className="toast"><Check size={17} />{notice}<button onClick={() => setNotice("")} aria-label="Fechar"><X size={15} /></button></div>}
-      {cartOpen && <div className="drawer-backdrop" onClick={() => setCartOpen(false)}><aside className="cart-drawer" onClick={(event) => event.stopPropagation()}><div className="drawer-heading"><h2>Sua sacola <span>({cartCount})</span></h2><button className="icon-button" onClick={() => setCartOpen(false)} aria-label="Fechar sacola"><X size={20} /></button></div><div className="cart-empty"><ShoppingBag size={30} /><p>{cartCount ? "Sua sacola está pronta para ganhar novas histórias." : "Sua sacola ainda está vazia."}</p><span>Escolha uma peça para chamar de sua.</span></div><button className="button button-dark drawer-cta" onClick={() => setCartOpen(false)}>Continuar explorando <ArrowRight size={16} /></button></aside></div>}
+      {cartOpen && <div className="drawer-backdrop" onClick={() => setCartOpen(false)}><aside className="cart-drawer" onClick={(event) => event.stopPropagation()}><div className="drawer-heading"><h2>Sua sacola <span>({itemCount})</span></h2><button className="icon-button" onClick={() => setCartOpen(false)} aria-label="Fechar sacola"><X size={20} /></button></div>{storageError && <div className="cart-storage-error" role="alert"><p>{storageError}</p><button onClick={clearCart}>Limpar a sacola salva</button></div>}{items.length ? <><div className="cart-items">{items.map((item) => <article className="cart-item" key={item.id}><div className={`cart-item-art product-${item.tone}`}>{item.imageUrl ? <Image src={item.imageUrl} alt="" fill sizes="58px" /> : <span className="jewel-shape" />}</div><div className="cart-item-copy"><strong>{item.name}</strong><span>{formatPrice(item.price)}</span><span className={item.stock === 0 ? "product-stock-unavailable" : "product-stock-available"}>{item.stock === 0 ? "Estoque indisponível" : item.stock === undefined ? "Disponibilidade a confirmar" : "Disponível"}</span><div className="cart-quantity"><button aria-label={`Diminuir quantidade de ${item.name}`} onClick={() => setQuantity(item.id, item.quantity - 1)}><Minus size={13} /></button><span>{item.quantity}</span><button aria-label={`Aumentar quantidade de ${item.name}`} onClick={() => setQuantity(item.id, item.quantity + 1)} disabled={item.quantity >= Math.min(10, item.stock ?? 10)}><Plus size={13} /></button></div></div><button className="cart-remove" aria-label={`Remover ${item.name}`} onClick={() => removeItem(item.id)}><Trash2 size={15} /></button></article>)}</div><div className="cart-summary"><span>Subtotal</span><strong>{formatPrice(items.reduce((total, item) => total + item.price * item.quantity, 0))}</strong><small>Frete a confirmar no checkout.</small>{items.some((item) => item.stock === 0 || item.stock !== undefined && item.quantity > item.stock) ? <p className="cart-unavailable-note">Ajuste ou remova os itens sem estoque para continuar.</p> : <Link className="button button-dark drawer-cta" href="/checkout">Ir para o checkout <ArrowRight size={16} /></Link>}</div></> : <div className="cart-empty"><ShoppingBag size={30} /><p>Sua sacola ainda está vazia.</p><span>Escolha uma peça para chamar de sua.</span></div>}<button className="cart-continue" onClick={() => setCartOpen(false)}>Continuar explorando</button></aside></div>}
     </main>
   );
 }

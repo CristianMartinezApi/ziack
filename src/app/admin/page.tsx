@@ -1,14 +1,111 @@
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, Box, CircleDollarSign, ClipboardList, LayoutDashboard, PackagePlus, Settings, Users } from "lucide-react";
-import { logoutAction } from "./actions";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Box, CircleDollarSign, ClipboardList, PackagePlus } from "lucide-react";
+import { prisma } from "@/lib/prisma";
+import { LOW_STOCK_THRESHOLD } from "@/lib/inventory";
+import { formatPrice } from "@/lib/products";
 
-const orders = [
-  { id: "#ZK-2048", customer: "Mariana Costa", date: "Hoje, 10:42", status: "Em separação", total: "R$ 709,00" },
-  { id: "#ZK-2047", customer: "Ana Beatriz Lima", date: "Hoje, 09:18", status: "Pago", total: "R$ 420,00" },
-  { id: "#ZK-2046", customer: "Clara Mendes", date: "Ontem, 16:35", status: "Enviado", total: "R$ 315,00" },
-  { id: "#ZK-2045", customer: "Isabela Rocha", date: "Ontem, 14:02", status: "Pago", total: "R$ 578,00" },
-];
+const demoChart = [[42, "Seg"], [68, "Ter"], [51, "Qua"], [83, "Qui"], [61, "Sex"], [96, "Sáb"], [74, "Dom"]] as const;
+const demoBestSellers = [["Brinco Aurora", "18 vendidos", "#f0e2ce"], ["Colar Luna", "12 vendidos", "#e8d9bf"], ["Anel Solar", "8 vendidos", "#eadbd6"]] as const;
+const statusLabels = {
+  PENDING: "Pendente",
+  PAID: "Pagamento recebido",
+  PREPARING: "Em separação",
+  SHIPPED: "Enviado",
+  DELIVERED: "Entregue",
+  CANCELLED: "Cancelado",
+} as const;
 
-export default function AdminPage() {
-  return <main className="admin-shell"><aside className="admin-sidebar"><Link className="wordmark" href="/">ziack<span>.</span></Link><p className="admin-label">PAINEL DA LOJA</p><nav><a className="admin-nav active" href="#visao"><LayoutDashboard size={17} /> Visão geral</a><a className="admin-nav" href="#pedidos"><ClipboardList size={17} /> Pedidos <span className="nav-count">4</span></a><Link className="admin-nav" href="/admin/produtos"><Box size={17} /> Produtos</Link><a className="admin-nav" href="#clientes"><Users size={17} /> Clientes</a><a className="admin-nav" href="#config"><Settings size={17} /> Configurações</a></nav><div className="admin-user"><span className="user-avatar">Z</span><div><strong>Equipe Ziack</strong><small>Administrador</small></div></div></aside><section className="admin-content" id="visao"><header className="admin-topbar"><div><p className="eyebrow">QUARTA-FEIRA, 05 DE NOVEMBRO DE 2026</p><h1>Bom dia, equipe <span>✳</span></h1></div><div className="admin-top-actions"><Link className="button button-dark" href="/#colecao"><PackagePlus size={16} /> Ver loja</Link><form action={logoutAction}><button className="logout-button" type="submit">Sair</button></form></div></header><div className="admin-intro"><div><h2>Visão geral</h2><p>Acompanhe o que está acontecendo na sua loja.</p></div><button className="period-select">Últimos 7 dias <ArrowDownRight size={15} /></button></div><div className="stats-grid"><article className="stat-card"><span>Vendas totais</span><CircleDollarSign size={17} /><strong>R$ 12.840</strong><small className="stat-up"><ArrowUpRight size={14} /> 18,2% <i>vs. semana passada</i></small></article><article className="stat-card"><span>Pedidos</span><ClipboardList size={17} /><strong>38</strong><small className="stat-up"><ArrowUpRight size={14} /> 12,5% <i>vs. semana passada</i></small></article><article className="stat-card"><span>Ticket médio</span><CircleDollarSign size={17} /><strong>R$ 337,90</strong><small className="stat-down"><ArrowDownRight size={14} /> 2,4% <i>vs. semana passada</i></small></article><article className="stat-card"><span>Produtos ativos</span><Box size={17} /><strong>24</strong><small className="stat-neutral">4 categorias</small></article></div><div className="admin-panels"><section className="sales-panel"><div className="panel-heading"><div><h3>Vendas ao longo do tempo</h3><p>Um resumo da sua semana</p></div><strong>R$ 12.840</strong></div><div className="chart"><div className="chart-grid"><span>R$ 4 mil</span><span>R$ 3 mil</span><span>R$ 2 mil</span><span>R$ 1 mil</span></div><div className="chart-bars">{[[42,"Seg"],[68,"Ter"],[51,"Qua"],[83,"Qui"],[61,"Sex"],[96,"Sáb"],[74,"Dom"]].map(([height, day]) => <div className="chart-column" key={day}><span className="chart-bar" style={{ height: `${height}%` }} /><small>{day}</small></div>)}</div></div></section><section className="top-products"><div className="panel-heading"><div><h3>Mais vendidos</h3><p>Nesta semana</p></div><Link href="/admin/produtos">Ver todos <ArrowUpRight size={14} /></Link></div>{[["Brinco Aurora","18 vendidos","#f0e2ce"],["Colar Luna","12 vendidos","#e8d9bf"],["Anel Solar","8 vendidos","#eadbd6"]].map(([name, count, color]) => <div className="top-product" key={name}><span className="mini-product" style={{ backgroundColor: color }}><span /></span><strong>{name}<small>{count}</small></strong><ArrowUpRight size={14} /></div>)}</section></div><section className="orders-panel" id="pedidos"><div className="panel-heading"><div><h3>Pedidos recentes</h3><p>As últimas compras da sua loja</p></div><a href="#pedidos">Ver pedidos <ArrowUpRight size={14} /></a></div><div className="orders-table"><div className="order-row order-head"><span>Pedido</span><span>Cliente</span><span>Data</span><span>Status</span><span>Total</span></div>{orders.map((order) => <div className="order-row" key={order.id}><strong>{order.id}</strong><span>{order.customer}</span><span>{order.date}</span><span><i className={`status-dot ${order.status === "Enviado" ? "sent" : ""}`} />{order.status}</span><strong>{order.total}</strong></div>)}</div></section><p className="admin-demo-note">Indicadores, pedidos e clientes são dados demonstrativos nesta primeira etapa.</p></section></main>;
+export const dynamic = "force-dynamic";
+
+export default async function AdminPage() {
+  const [orderCount, pendingCount, activeProductCount, lowStockCount, lowStockProducts, confirmedOrders, orders] = await Promise.all([
+    prisma.order.count(),
+    prisma.order.count({ where: { status: "PENDING" } }),
+    prisma.product.count({ where: { active: true, category: { active: true } } }),
+    prisma.product.count({
+      where: { active: true, stock: { lte: LOW_STOCK_THRESHOLD }, category: { active: true } },
+    }),
+    prisma.product.findMany({
+      where: { active: true, stock: { lte: LOW_STOCK_THRESHOLD }, category: { active: true } },
+      select: { id: true, name: true, sku: true, stock: true, category: { select: { name: true } } },
+      orderBy: [{ stock: "asc" }, { name: "asc" }],
+      take: 6,
+    }),
+    prisma.order.aggregate({
+      where: { status: { in: ["PAID", "PREPARING", "SHIPPED", "DELIVERED"] } },
+      _count: { _all: true },
+      _sum: { subtotal: true, discount: true },
+    }),
+    prisma.order.findMany({
+      select: { id: true, number: true, customerName: true, createdAt: true, status: true, subtotal: true },
+      orderBy: { createdAt: "desc" },
+      take: 4,
+    }),
+  ]);
+  const confirmedSubtotal = Number(confirmedOrders._sum.subtotal ?? 0) - Number(confirmedOrders._sum.discount ?? 0);
+  const averageConfirmedSubtotal = confirmedOrders._count._all
+    ? confirmedSubtotal / confirmedOrders._count._all
+    : null;
+  const today = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(new Date()).toUpperCase();
+
+  return (
+      <section className="admin-content" id="visao">
+        <header className="admin-topbar">
+          <div><p className="eyebrow">{today}</p><h1>Bom dia, equipe <span>✳</span></h1></div>
+          <div className="admin-top-actions"><Link className="button button-dark" href="/#colecao"><PackagePlus size={16} /> Ver loja</Link></div>
+        </header>
+
+        <div className="admin-intro"><div><h2>Visão geral</h2><p>Acompanhe o que está acontecendo na sua loja.</p></div><button className="period-select">Últimos 7 dias <ArrowDownRight size={15} /></button></div>
+        <div className="stats-grid">
+          <article className="stat-card"><span>Subtotal de pedidos pagos</span><CircleDollarSign size={17} /><strong>{formatPrice(confirmedSubtotal)}</strong><small className="stat-neutral">Marcados manualmente; sem gateway</small></article>
+          <article className="stat-card"><span>Pedidos recebidos</span><ClipboardList size={17} /><strong>{orderCount}</strong><small className="stat-neutral">{pendingCount} aguardando confirmação</small></article>
+          <article className="stat-card"><span>Ticket médio confirmado</span><CircleDollarSign size={17} /><strong>{averageConfirmedSubtotal === null ? "—" : formatPrice(averageConfirmedSubtotal)}</strong><small className="stat-neutral">{confirmedOrders._count._all} pedido(s) marcado(s) como pago(s)</small></article>
+          <article className="stat-card"><span>Produtos ativos</span><Box size={17} /><strong>{activeProductCount}</strong><small className="stat-neutral">No catálogo</small></article>
+          <article className={lowStockCount > 0 ? "stat-card stat-card-alert" : "stat-card"}><span>Estoque baixo</span><AlertTriangle size={17} /><strong>{lowStockCount}</strong><small className={lowStockCount > 0 ? "stat-warning" : "stat-neutral"}>{lowStockCount > 0 ? `Até ${LOW_STOCK_THRESHOLD} unidades` : "Nenhuma reposição urgente"}</small></article>
+        </div>
+
+        <div className="admin-panels">
+          <section className="sales-panel">
+            <div className="panel-heading"><div><h3>Vendas ao longo do tempo</h3><p>Prévia demonstrativa</p></div></div>
+            <div className="chart"><div className="chart-grid"><span>R$ 4 mil</span><span>R$ 3 mil</span><span>R$ 2 mil</span><span>R$ 1 mil</span></div><div className="chart-bars">{demoChart.map(([height, day]) => <div className="chart-column" key={day}><span className="chart-bar" style={{ height: `${height}%` }} /><small>{day}</small></div>)}</div></div>
+          </section>
+          <section className="top-products">
+            <div className="panel-heading"><div><h3>Mais vendidos</h3><p>Dados demonstrativos</p></div><Link href="/admin/produtos">Ver todos <ArrowUpRight size={14} /></Link></div>
+            {demoBestSellers.map(([name, count, color]) => <div className="top-product" key={name}><span className="mini-product" style={{ backgroundColor: color }}><span /></span><strong>{name}<small>{count}</small></strong><ArrowUpRight size={14} /></div>)}
+          </section>
+        </div>
+
+        <section className="stock-alert-panel" aria-labelledby="stock-alert-title">
+          <div className="panel-heading">
+            <div><h3 id="stock-alert-title">Atenção ao estoque</h3><p>Produtos ativos com até {LOW_STOCK_THRESHOLD} unidades, incluindo itens sem estoque.</p></div>
+            <Link href="/admin/produtos">Gerenciar produtos <ArrowUpRight size={14} /></Link>
+          </div>
+          {lowStockProducts.length ? <div className="stock-alert-list">
+            {lowStockProducts.map((product) => (
+              <article className="stock-alert-row" key={product.id}>
+                <div><strong>{product.name}</strong><small>{product.category.name} · SKU {product.sku}</small></div>
+                <span className={product.stock === 0 ? "stock-alert-quantity out-of-stock" : "stock-alert-quantity"}>{product.stock === 0 ? "Sem estoque" : `${product.stock} ${product.stock === 1 ? "unidade" : "unidades"}`}</span>
+                <Link href="/admin/produtos">Ajustar estoque</Link>
+              </article>
+            ))}
+          </div> : <p className="stock-alert-empty">Nenhum produto ativo precisa de reposição neste momento.</p>}
+          {lowStockCount > lowStockProducts.length && <p className="stock-alert-more">Mais {lowStockCount - lowStockProducts.length} produto(s) com estoque baixo.</p>}
+        </section>
+
+        <section className="orders-panel" id="pedidos">
+          <div className="panel-heading"><div><h3>Pedidos recentes</h3><p>Pedidos registrados no checkout</p></div><Link href="/admin/pedidos">Ver todos <ArrowUpRight size={14} /></Link></div>
+          {orders.length ? <div className="orders-table">
+            <div className="order-row order-head"><span>Pedido</span><span>Cliente</span><span>Data</span><span>Status</span><span>Subtotal</span></div>
+            {orders.map((order) => <div className="order-row" key={order.id}>
+              <strong>{order.number}</strong>
+              <span>{order.customerName ?? "Cliente"}</span>
+              <time dateTime={order.createdAt.toISOString()}>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(order.createdAt)}</time>
+              <span><i className={`status-dot status-${order.status.toLowerCase()}`} />{statusLabels[order.status]}</span>
+              <strong>{formatPrice(Number(order.subtotal))}</strong>
+            </div>)}
+          </div> : <p className="orders-empty">Nenhum pedido registrado.</p>}
+        </section>
+        <p className="admin-demo-note">Pagamentos, gráfico de vendas e produtos mais vendidos são demonstrativos. Pedidos, produtos ativos e pendências vêm do banco de dados.</p>
+      </section>
+  );
 }

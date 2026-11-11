@@ -1,6 +1,7 @@
 node_modules
 .next
 .git
+/data/uploads/
 .env*
 !.env.example
 npm-debug.log

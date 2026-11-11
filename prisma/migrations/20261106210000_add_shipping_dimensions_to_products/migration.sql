@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Product"
+ADD COLUMN "weight" DECIMAL(8,3),
+ADD COLUMN "width" INTEGER,
+ADD COLUMN "height" INTEGER,
+ADD COLUMN "length" INTEGER;

@@ -22,7 +22,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
+RUN mkdir -p /app/data/uploads && chown -R nextjs:nodejs /app/data
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
-CMD ["sh", "-c", "npx prisma db push && npx prisma db seed && node server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
